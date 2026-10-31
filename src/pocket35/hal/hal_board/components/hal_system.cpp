@@ -3,6 +3,13 @@
 #include "../hal_config.h"
 #include "../hal_board.h"
 
+namespace
+{
+    bool buttonWasPressed = false;
+    uint32_t buttonPressTick = 0;
+    BUTTON::Event pendingEvent = BUTTON::Event::none;
+} // namespace
+
 void HAL_Board::_i2c_init() { Wire.begin(HAL_PIN_I2C_SDA, HAL_PIN_I2C_SCL, 400000); }
 
 uint8_t HAL_Board::_io_expander_read(uint8_t reg)
@@ -58,12 +65,43 @@ void HAL_Board::init()
     _sensor_init();
     _wifi_init();
     _sum_up();
+
+    pinMode(HAL_PIN_BUTTON_BOOT, INPUT_PULLUP);
+    buttonWasPressed = digitalRead(HAL_PIN_BUTTON_BOOT) == LOW;
+    buttonPressTick = millis();
 }
 
 void HAL_Board::reboot()
 {
     delay(50);
     ESP.restart();
+}
+
+void HAL_Board::buttonUpdate()
+{
+    bool pressed = digitalRead(HAL_PIN_BUTTON_BOOT) == LOW;
+    uint32_t now = millis();
+
+    if (pressed && !buttonWasPressed)
+    {
+        buttonWasPressed = true;
+        buttonPressTick = now;
+    }
+    else if (!pressed && buttonWasPressed)
+    {
+        buttonWasPressed = false;
+        if (now - buttonPressTick > 20)
+        {
+            pendingEvent = BUTTON::Event::click;
+        }
+    }
+}
+
+BUTTON::Event HAL_Board::getButtonEvent()
+{
+    BUTTON::Event event = pendingEvent;
+    pendingEvent = BUTTON::Event::none;
+    return event;
 }
 
 void HAL_Board::powerOff()

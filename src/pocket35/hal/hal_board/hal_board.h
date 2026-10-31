@@ -42,8 +42,12 @@ public:
     void imuUpdate() override;
     void rtcUpdate() override;
     void rtcSetTime(const RTC::Time_t& t) override;
+    void ntpSync() override;
     void pmicUpdate() override;
 
     void wifiUpdate() override;
     void wifiStartConfig() override;
+
+    void buttonUpdate() override;
+    BUTTON::Event getButtonEvent() override;
 };

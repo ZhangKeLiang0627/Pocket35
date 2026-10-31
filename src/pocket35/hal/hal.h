@@ -83,7 +83,26 @@ namespace RTC
         int second = 0;
         bool valid = false;
     };
+
+    struct SyncInfo_t
+    {
+        bool synced = false;
+        int year = 0;
+        int month = 0;
+        int day = 0;
+        int hour = 0;
+        int minute = 0;
+    };
 } // namespace RTC
+
+namespace BUTTON
+{
+    enum class Event
+    {
+        none = 0,
+        click,
+    };
+} // namespace BUTTON
 
 namespace PMIC
 {
@@ -147,8 +166,10 @@ protected:
     std::function<void(const uint8_t*, size_t)> _ble_rx_callback;
     IMU::Data_t _imu;
     RTC::Time_t _rtc_time;
+    RTC::SyncInfo_t _rtc_sync;
     PMIC::Battery_t _battery;
     WIFI::Info_t _wifi;
+    BUTTON::Event _button_event = BUTTON::Event::none;
 
 public:
     static LGFX_Device* GetDisplay() { return Get()->_display; }
@@ -238,6 +259,9 @@ public:
     static RTC::Time_t& GetRtcTime() { return Get()->_rtc_time; }
     static void RtcSetTime(const RTC::Time_t& t) { Get()->rtcSetTime(t); }
     virtual void rtcSetTime(const RTC::Time_t& t) {}
+    static void NtpSync() { Get()->ntpSync(); }
+    virtual void ntpSync() {}
+    static RTC::SyncInfo_t& GetRtcSyncInfo() { return Get()->_rtc_sync; }
 
     static void PmicUpdate() { Get()->pmicUpdate(); }
     virtual void pmicUpdate() {}
@@ -248,6 +272,11 @@ public:
     static WIFI::Info_t& GetWifiInfo() { return Get()->_wifi; }
     static void WifiStartConfig() { Get()->wifiStartConfig(); }
     virtual void wifiStartConfig() {}
+
+    static void ButtonUpdate() { Get()->buttonUpdate(); }
+    virtual void buttonUpdate() {}
+    static BUTTON::Event GetButtonEvent() { return Get()->getButtonEvent(); }
+    virtual BUTTON::Event getButtonEvent() { return BUTTON::Event::none; }
 
 protected:
     void setBleState(BLE::State state) { _ble_state = state; }

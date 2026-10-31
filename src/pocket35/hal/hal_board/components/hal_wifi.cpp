@@ -180,6 +180,10 @@ void HAL_Board::wifiUpdate()
             _wifi.state = WIFI::State::connected;
             _wifi.ip = WiFi.localIP().toString().c_str();
             printf("wifi: connected ip=%s\n", _wifi.ip.c_str());
+            if (!_rtc_sync.synced)
+            {
+                ntpSync();
+            }
         }
         else if (millis() - connectStartTick > kConnectTimeoutMs)
         {

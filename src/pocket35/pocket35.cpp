@@ -31,7 +31,16 @@ void POCKET35::Loop()
 {
     HAL::UpdateTouch();
     HAL::WifiUpdate();
-    mooncake::GetMooncake().update();
+    HAL::ButtonUpdate();
+
+    auto& mooncake = mooncake::GetMooncake();
+    if (HAL::GetButtonEvent() == BUTTON::Event::click &&
+        mooncake.getAppCurrentState(appIDs.launcher) != mooncake::AppAbility::StateRunning)
+    {
+        mooncake.openApp(appIDs.launcher);
+    }
+
+    mooncake.update();
 }
 
 void POCKET35::Destroy()

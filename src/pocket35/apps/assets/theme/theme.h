@@ -14,4 +14,5 @@ namespace THEME
     inline constexpr uint32_t kAppImuTheme = 0x8E5CF0;
     inline constexpr uint32_t kAppBatteryTheme = 0x2FB86B;
     inline constexpr uint32_t kAppWifiTheme = 0x00A8D6;
+    inline constexpr uint32_t kAppClockTheme = 0xE0557E;
 } // namespace THEME

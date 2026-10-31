@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <math.h>
+#include <time.h>
 #include <ImuDrv.hpp>
 #include <RtcDrv.hpp>
 #include <PmicXPowers.hpp>
@@ -148,6 +149,37 @@ void HAL_Board::rtcUpdate()
 void HAL_Board::rtcSetTime(const RTC::Time_t& t)
 {
     rtcDevice.setDateTime(t.year, t.month, t.day, t.hour, t.minute, t.second);
+}
+
+void HAL_Board::ntpSync()
+{
+    configTime(8 * 3600, 0, "ntp.aliyun.com", "pool.ntp.org");
+
+    struct tm timeinfo;
+    if (!::getLocalTime(&timeinfo, 8000))
+    {
+        printf("ntp: sync failed\n");
+        return;
+    }
+
+    RTC::Time_t t;
+    t.year = timeinfo.tm_year + 1900;
+    t.month = timeinfo.tm_mon + 1;
+    t.day = timeinfo.tm_mday;
+    t.hour = timeinfo.tm_hour;
+    t.minute = timeinfo.tm_min;
+    t.second = timeinfo.tm_sec;
+    t.valid = true;
+    rtcSetTime(t);
+
+    _rtc_sync.synced = true;
+    _rtc_sync.year = t.year;
+    _rtc_sync.month = t.month;
+    _rtc_sync.day = t.day;
+    _rtc_sync.hour = t.hour;
+    _rtc_sync.minute = t.minute;
+
+    printf("ntp: synced %04d-%02d-%02d %02d:%02d:%02d\n", t.year, t.month, t.day, t.hour, t.minute, t.second);
 }
 
 void HAL_Board::pmicUpdate()
