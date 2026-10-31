@@ -60,6 +60,9 @@ flowchart TB
 | WiFi | Provisioning through a captive portal |
 | Clock | Large clock + date/weekday with RTC NTP sync |
 | LVGL Demo | LVGL widgets (label / slider / button) to validate coexistence |
+| FluidBox | Particle fluid simulation driven by the IMU and touch |
+| Lucky Wheel | Two-stage spin wheel with an option selector |
+| Audio FFT | 20-band radial spectrum from the ES8311 microphone |
 | Template | App scaffold for quick iteration |
 
 ## Onboard peripherals

@@ -1,0 +1,8 @@
+{
+  "name": "es8311",
+  "version": "1.0.0",
+  "description": "ES8311 audio codec driver (Arduino Wire port of the Espressif driver)",
+  "license": "Apache-2.0",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

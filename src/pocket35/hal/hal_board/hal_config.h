@@ -11,6 +11,12 @@
 #define HAL_PIN_I2C_SDA 8
 #define HAL_PIN_I2C_SCL 7
 
+#define HAL_PIN_I2S_MCLK 12
+#define HAL_PIN_I2S_BCLK 13
+#define HAL_PIN_I2S_LRCK 15
+#define HAL_PIN_I2S_DOUT 16
+#define HAL_PIN_I2S_DIN 14
+
 #define HAL_PIN_TP_INT -1
 #define HAL_PIN_TP_RST -1
 
@@ -18,6 +24,7 @@
 
 #define HAL_I2C_ADDR_IO_EXPANDER 0x20
 #define HAL_I2C_ADDR_TOUCH 0x38
+#define HAL_I2C_ADDR_ES8311 0x18
 
 #define HAL_IO_EXPANDER_PIN_LCD_RST 1
 

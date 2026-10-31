@@ -45,6 +45,10 @@ public:
     void ntpSync() override;
     void pmicUpdate() override;
 
+    void audioOpen() override;
+    void audioClose() override;
+    void audioUpdate() override;
+
     void wifiUpdate() override;
     void wifiStartConfig() override;
 

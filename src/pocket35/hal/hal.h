@@ -119,6 +119,18 @@ namespace PMIC
     };
 } // namespace PMIC
 
+namespace AUDIO
+{
+    constexpr int kBandCount = 20;
+
+    struct Spectrum_t
+    {
+        float bands[kBandCount] = {0};
+        float peakFrequencyHz = 0.0f;
+        bool ready = false;
+    };
+} // namespace AUDIO
+
 namespace WIFI
 {
     enum class State
@@ -168,6 +180,7 @@ protected:
     RTC::Time_t _rtc_time;
     RTC::SyncInfo_t _rtc_sync;
     PMIC::Battery_t _battery;
+    AUDIO::Spectrum_t _spectrum;
     WIFI::Info_t _wifi;
     BUTTON::Event _button_event = BUTTON::Event::none;
 
@@ -269,6 +282,14 @@ public:
     static void PmicUpdate() { Get()->pmicUpdate(); }
     virtual void pmicUpdate() {}
     static PMIC::Battery_t& GetBattery() { return Get()->_battery; }
+
+    static void AudioOpen() { Get()->audioOpen(); }
+    virtual void audioOpen() {}
+    static void AudioClose() { Get()->audioClose(); }
+    virtual void audioClose() {}
+    static void AudioUpdate() { Get()->audioUpdate(); }
+    virtual void audioUpdate() {}
+    static AUDIO::Spectrum_t& GetAudioSpectrum() { return Get()->_spectrum; }
 
     static void WifiUpdate() { Get()->wifiUpdate(); }
     virtual void wifiUpdate() {}

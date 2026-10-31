@@ -8,3 +8,4 @@
 #include "icon_app_lvgl.hpp"
 #include "icon_app_fluidbox.hpp"
 #include "icon_app_lucky_wheel.hpp"
+#include "icon_app_fft.hpp"
