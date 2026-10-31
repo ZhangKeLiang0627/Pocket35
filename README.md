@@ -63,6 +63,7 @@ flowchart TB
 | FluidBox | Particle fluid simulation driven by the IMU and touch |
 | Lucky Wheel | Two-stage spin wheel with an option selector |
 | Audio FFT | 20-band radial spectrum from the ES8311 microphone |
+| Watch Face | Four swappable dials: classic, number flow, big number, minimal |
 | Template | App scaffold for quick iteration |
 
 ## Onboard peripherals

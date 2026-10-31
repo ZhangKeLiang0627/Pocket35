@@ -9,3 +9,4 @@
 #include "icon_app_fluidbox.hpp"
 #include "icon_app_lucky_wheel.hpp"
 #include "icon_app_fft.hpp"
+#include "icon_app_watch_face.hpp"

@@ -18,4 +18,5 @@ namespace THEME
     inline constexpr uint32_t kAppFluidboxTheme = 0x2DD4BF;
     inline constexpr uint32_t kAppLuckyWheelTheme = 0xF4CA63;
     inline constexpr uint32_t kAppFftTheme = 0x9B6BE8;
+    inline constexpr uint32_t kAppWatchFaceTheme = 0xF26419;
 } // namespace THEME

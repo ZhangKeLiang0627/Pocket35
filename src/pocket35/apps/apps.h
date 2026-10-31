@@ -10,6 +10,7 @@
 #include "app_fluidbox/app_fluidbox.h"
 #include "app_lucky_wheel/app_lucky_wheel.h"
 #include "app_fft/app_fft.h"
+#include "app_watch_face/app_watch_face.h"
 #include "app_template/app_template.h"
 
 namespace POCKET35_APPS
@@ -26,6 +27,7 @@ namespace POCKET35_APPS
         int fluidbox = -1;
         int luckyWheel = -1;
         int fft = -1;
+        int watchFace = -1;
         int appTemplate = -1;
     };
 
@@ -43,6 +45,7 @@ namespace POCKET35_APPS
         ids.fluidbox = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppFluidBox>());
         ids.luckyWheel = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppLuckyWheel>());
         ids.fft = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppFft>());
+        ids.watchFace = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppWatchFace>());
         ids.appTemplate = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppTemplate>());
 
         return ids;
