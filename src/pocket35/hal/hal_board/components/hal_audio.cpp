@@ -26,14 +26,19 @@ namespace
     constexpr int kPeakSeedFrames = 3;
     constexpr int kPeakHoldFrames = 60;
 
-    constexpr int kSfxMaxSamples = 1024;
-    constexpr int kSfxSlotCount = 3;
-    constexpr int kSfxFadeSamples = 32;
+    constexpr int kSfxMaxSamples = 1280;
+    constexpr int kSfxQueueDepth = 4;
+    constexpr int kSfxFadeSamples = 64;
     constexpr int kSfxWriteChunk = 256;
     constexpr int kSfxTaskStack = 4096;
     constexpr UBaseType_t kSfxTaskPriority = 4;
     constexpr float kSfxAmplitude = 32767.0f * 0.5f;
-    constexpr float kTwoPi = 6.28318530718f;
+    constexpr int kDacRegZeroDb = 0xBF;
+    constexpr int kDacRegMinus60Db = 0x47;
+    constexpr int kTwoPi = 6.28318530718f;
+
+    constexpr uint32_t kSfxRepeatGapMs[] = {24, 24, 44, 90, 90};
+    constexpr int kSfxGapCount = static_cast<int>(sizeof(kSfxRepeatGapMs) / sizeof(kSfxRepeatGapMs[0]));
 
     es8311_handle_t codec = nullptr;
     bool deviceReady = false;
@@ -78,14 +83,28 @@ namespace
         {{{83, 0.026f}, {76, 0.040f}}, 2, 0.45f},
     };
 
+    struct SfxJob
+    {
+        const int16_t* samples;
+        int count;
+        AUDIO::Sfx sfx;
+    };
+
     TaskHandle_t sfxTask = nullptr;
-    int16_t sfxSlots[kSfxSlotCount][kSfxMaxSamples];
-    int sfxSlotIndex = 0;
-    const int16_t* sfxPendingSamples = nullptr;
-    int sfxPendingCount = 0;
+    SfxJob sfxJobs[kSfxQueueDepth];
+    int sfxHead = 0;
+    int sfxTail = 0;
+    uint32_t sfxLastTriggerMs[kSfxGapCount];
+    int16_t sfxClip[kSfxMaxSamples];
     portMUX_TYPE sfxLock = portMUX_INITIALIZER_UNLOCKED;
 
     float midiToHz(int midi) { return 440.0f * powf(2.0f, static_cast<float>(midi - 69) / 12.0f); }
+
+    int codecVolumeArg(int percent)
+    {
+        const int reg = kDacRegMinus60Db + (kDacRegZeroDb - kDacRegMinus60Db) * percent / 100;
+        return (reg + 1) * 100 / 256;
+    }
 
     float meanOf(const float* data, int count)
     {
@@ -427,7 +446,7 @@ namespace
         }
 
         es8311_voice_mute(codec, false);
-        es8311_voice_volume_set(codec, 70, nullptr);
+        es8311_voice_volume_set(codec, codecVolumeArg(HAL::GetVolume()), nullptr);
         es8311_microphone_config(codec, false);
         es8311_microphone_gain_set(codec, ES8311_MIC_GAIN_30DB);
         return true;
@@ -456,16 +475,44 @@ namespace
         return true;
     }
 
-    bool writePcm(const int16_t* samples, int count)
+    int synthesize(const SfxSpec& spec, int16_t* out, int maxSamples)
+    {
+        int cursor = 0;
+
+        for (int noteIndex = 0; noteIndex < spec.noteCount && cursor < maxSamples; noteIndex++)
+        {
+            const NoteSpec& note = spec.notes[noteIndex];
+            const int total = static_cast<int>(static_cast<float>(kSampleRate) * note.duration);
+            const int fade = total / 8 < kSfxFadeSamples ? total / 8 : kSfxFadeSamples;
+            const float step = kTwoPi * midiToHz(note.midi) / static_cast<float>(kSampleRate);
+            float angle = 0.0f;
+
+            for (int i = 0; i < total && cursor < maxSamples; i++)
+            {
+                float envelope = 1.0f;
+                const int remain = total - i;
+                if (remain < fade)
+                    envelope = static_cast<float>(remain) / static_cast<float>(fade);
+                if (i < fade)
+                    envelope *= static_cast<float>(i) / static_cast<float>(fade);
+
+                out[cursor++] = static_cast<int16_t>(kSfxAmplitude * spec.gain * envelope * sinf(angle));
+                angle += step;
+                if (angle > kTwoPi)
+                    angle -= kTwoPi;
+            }
+        }
+
+        return cursor;
+    }
+
+    void writePcm(const int16_t* samples, int count)
     {
         int16_t stereo[kSfxWriteChunk * 2];
         int offset = 0;
 
         while (offset < count)
         {
-            if (ulTaskNotifyTake(pdTRUE, 0) > 0)
-                return false;
-
             int take = count - offset;
             if (take > kSfxWriteChunk)
                 take = kSfxWriteChunk;
@@ -481,73 +528,90 @@ namespace
             i2s_write(I2S_NUM_0, stereo, static_cast<size_t>(take) * 2 * sizeof(int16_t), &written, portMAX_DELAY);
             offset += take;
         }
+    }
 
-        return true;
+    bool hasQueueRoom()
+    {
+        const int used = (sfxTail - sfxHead + kSfxQueueDepth) % kSfxQueueDepth;
+        return used < kSfxQueueDepth - 1;
+    }
+
+    bool enqueueSfx(AUDIO::Sfx sfx)
+    {
+        if (sfxTask == nullptr)
+            return false;
+
+        const uint32_t now = millis();
+        const int gapIndex = static_cast<int>(sfx);
+        bool accepted = false;
+
+        portENTER_CRITICAL(&sfxLock);
+        if (hasQueueRoom() && now - sfxLastTriggerMs[gapIndex] >= kSfxRepeatGapMs[gapIndex])
+        {
+            sfxJobs[sfxTail] = {nullptr, 0, sfx};
+            sfxTail = (sfxTail + 1) % kSfxQueueDepth;
+            sfxLastTriggerMs[gapIndex] = now;
+            accepted = true;
+        }
+        portEXIT_CRITICAL(&sfxLock);
+
+        if (accepted)
+            xTaskNotifyGive(sfxTask);
+
+        return accepted;
+    }
+
+    bool enqueuePcm(const int16_t* samples, int count)
+    {
+        if (sfxTask == nullptr || count <= 0)
+            return false;
+
+        bool accepted = false;
+
+        portENTER_CRITICAL(&sfxLock);
+        if (hasQueueRoom())
+        {
+            sfxJobs[sfxTail] = {samples, count, AUDIO::Sfx::tap};
+            sfxTail = (sfxTail + 1) % kSfxQueueDepth;
+            accepted = true;
+        }
+        portEXIT_CRITICAL(&sfxLock);
+
+        if (accepted)
+            xTaskNotifyGive(sfxTask);
+
+        return accepted;
     }
 
     void sfxTaskEntry(void*)
     {
         for (;;)
         {
-            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-            for (;;)
+            portENTER_CRITICAL(&sfxLock);
+            const bool hasJob = sfxHead != sfxTail;
+            SfxJob job = {};
+            if (hasJob)
             {
-                portENTER_CRITICAL(&sfxLock);
-                const int16_t* samples = sfxPendingSamples;
-                const int count = sfxPendingCount;
-                sfxPendingCount = 0;
-                portEXIT_CRITICAL(&sfxLock);
-
-                if (count <= 0)
-                    break;
-
-                if (!writePcm(samples, count))
-                    continue;
+                job = sfxJobs[sfxHead];
+                sfxHead = (sfxHead + 1) % kSfxQueueDepth;
             }
-        }
-    }
+            portEXIT_CRITICAL(&sfxLock);
 
-    void startPlayback(const int16_t* samples, int count)
-    {
-        if (sfxTask == nullptr || count <= 0)
-            return;
-
-        portENTER_CRITICAL(&sfxLock);
-        sfxPendingSamples = samples;
-        sfxPendingCount = count;
-        portEXIT_CRITICAL(&sfxLock);
-
-        xTaskNotifyGive(sfxTask);
-    }
-
-    int synthesize(const SfxSpec& spec, int16_t* out, int maxSamples)    {
-        int cursor = 0;
-
-        for (int noteIndex = 0; noteIndex < spec.noteCount && cursor < maxSamples; noteIndex++)
-        {
-            const NoteSpec& note = spec.notes[noteIndex];
-            const int total = static_cast<int>(static_cast<float>(kSampleRate) * note.duration);
-            const float step = kTwoPi * midiToHz(note.midi) / static_cast<float>(kSampleRate);
-            float angle = 0.0f;
-
-            for (int i = 0; i < total && cursor < maxSamples; i++)
+            if (!hasJob)
             {
-                float envelope = 1.0f;
-                const int remain = total - i;
-                if (remain < kSfxFadeSamples)
-                    envelope = static_cast<float>(remain) / static_cast<float>(kSfxFadeSamples);
-                if (i < kSfxFadeSamples)
-                    envelope *= static_cast<float>(i) / static_cast<float>(kSfxFadeSamples);
-
-                out[cursor++] = static_cast<int16_t>(kSfxAmplitude * spec.gain * envelope * sinf(angle));
-                angle += step;
-                if (angle > kTwoPi)
-                    angle -= kTwoPi;
+                ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+                continue;
             }
-        }
 
-        return cursor;
+            if (job.samples != nullptr)
+            {
+                writePcm(job.samples, job.count);
+                continue;
+            }
+
+            const int count = synthesize(kSfxTable[static_cast<int>(job.sfx)], sfxClip, kSfxMaxSamples);
+            writePcm(sfxClip, count);
+        }
     }
 
 } // namespace
@@ -643,7 +707,7 @@ void HAL_Board::playBootSound()
     if (!ensureDevice())
         return;
 
-    startPlayback(kBootSound, kBootSoundSampleCount);
+    enqueuePcm(kBootSound, kBootSoundSampleCount);
 }
 
 void HAL_Board::playSfx(AUDIO::Sfx sfx)
@@ -659,11 +723,7 @@ void HAL_Board::playSfx(AUDIO::Sfx sfx)
     if (index < 0 || index >= specCount)
         return;
 
-    int16_t* slot = sfxSlots[sfxSlotIndex];
-    sfxSlotIndex = (sfxSlotIndex + 1) % kSfxSlotCount;
-
-    const int count = synthesize(kSfxTable[index], slot, kSfxMaxSamples);
-    startPlayback(slot, count);
+    enqueueSfx(sfx);
 }
 
 void HAL_Board::setVolume(int percent)
@@ -676,5 +736,5 @@ void HAL_Board::setVolume(int percent)
     _volume = percent;
 
     if (codec != nullptr)
-        es8311_voice_volume_set(codec, percent, nullptr);
+        es8311_voice_volume_set(codec, codecVolumeArg(percent), nullptr);
 }

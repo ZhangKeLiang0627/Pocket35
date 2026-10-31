@@ -202,7 +202,7 @@ protected:
     BUTTON::Event _button_event = BUTTON::Event::none;
     m5::Button_Class btnBoot;
     BUTTON::Config_t buttonConfig;
-    int _volume = 70;
+    int _volume = 100;
 
 public:
     static LGFX_Device* GetDisplay() { return Get()->_display; }

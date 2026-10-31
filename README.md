@@ -77,6 +77,16 @@ flowchart TB
 
 Speaker and microphone share one full-duplex I2S channel at 16 kHz. The boot jingle and the button state machine are ported from [M5StopWatch-UserDemo](https://github.com/m5stack/M5StopWatch-UserDemo). Mute UI sounds with `HAL::SetButtonSfx(false)`.
 
+Sounds go through a queue drained by a dedicated task, so they play strictly one at a time: a fast swipe or a quick press-release never overlaps two tones or cuts one off mid-cycle. Repeats of the same sound are rate limited to keep a burst from turning into noise.
+
+| Sound | Min gap |
+| --- | --- |
+| Tap / Release | 24 ms |
+| Tick | 44 ms |
+| Confirm / Back | 90 ms |
+
+`HAL::SetVolume(0..100)` drives the ES8311 DAC register between −60 dB and 0 dB. 0 dB is the loudest setting that still keeps output clean — the chip's register range extends to +32 dB, which clips hard, so it is deliberately not used.
+
 ## Onboard peripherals
 
 | Chip | Function | I2C address |
