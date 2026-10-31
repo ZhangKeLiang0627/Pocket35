@@ -37,9 +37,17 @@ void POCKET35::Loop()
     if (HAL::GetButtonEvent() == BUTTON::Event::click &&
         mooncake.getAppCurrentState(appIDs.launcher) != mooncake::AppAbility::StateRunning)
     {
-        mooncake.openApp(appIDs.launcher);
+        for (const auto& props : mooncake.getAllAppProps())
+        {
+            if (props.appID != appIDs.launcher &&
+                mooncake.getAppCurrentState(props.appID) == mooncake::AppAbility::StateRunning)
+            {
+                mooncake.closeApp(props.appID);
+            }
+        }
     }
 
+    HAL::LvglUpdate();
     mooncake.update();
 }
 

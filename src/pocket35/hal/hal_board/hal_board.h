@@ -50,4 +50,10 @@ public:
 
     void buttonUpdate() override;
     BUTTON::Event getButtonEvent() override;
+
+    void lvglInit() override;
+    void lvglUpdate() override;
+    void lvglHideCanvas() override;
+    void lvglShowCanvas() override;
+    void canvasUpdate() override;
 };

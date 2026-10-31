@@ -278,6 +278,15 @@ public:
     static BUTTON::Event GetButtonEvent() { return Get()->getButtonEvent(); }
     virtual BUTTON::Event getButtonEvent() { return BUTTON::Event::none; }
 
+    static void LvglInit() { Get()->lvglInit(); }
+    virtual void lvglInit() {}
+    static void LvglUpdate() { Get()->lvglUpdate(); }
+    virtual void lvglUpdate() {}
+    static void LvglHideCanvas() { Get()->lvglHideCanvas(); }
+    virtual void lvglHideCanvas() {}
+    static void LvglShowCanvas() { Get()->lvglShowCanvas(); }
+    virtual void lvglShowCanvas() {}
+
 protected:
     void setBleState(BLE::State state) { _ble_state = state; }
 };

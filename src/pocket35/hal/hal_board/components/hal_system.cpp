@@ -62,6 +62,7 @@ void HAL_Board::init()
     _io_expander_init();
     _disp_init();
     _touch_init();
+    lvglInit();
     _sensor_init();
     _wifi_init();
     _sum_up();

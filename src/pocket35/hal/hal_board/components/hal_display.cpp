@@ -68,7 +68,7 @@ void HAL_Board::_disp_init()
 
     _canvas = new LGFX_SpriteFx(_display);
     _canvas->setPsram(true);
-    _canvas->setColorDepth(16);
+    _canvas->setColorDepth(lgfx::color_depth_t::rgb565_nonswapped);
     if (_canvas->createSprite(_display->width(), _display->height()) == nullptr)
     {
         popFatalError("canvas alloc failed");
