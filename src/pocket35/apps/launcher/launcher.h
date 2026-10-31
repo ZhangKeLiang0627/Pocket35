@@ -92,6 +92,7 @@ namespace MOONCAKE::APPS
     private:
         VIEW::LauncherView* launcherView = nullptr;
         int lastSelectedAppId = -1;
+        bool bootSoundPlayed = false;
 
         void createLauncherView();
         void destroyLauncherView();

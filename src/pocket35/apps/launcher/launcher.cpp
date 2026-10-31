@@ -236,7 +236,8 @@ void LauncherView::_releaseDrag()
         steps = -kFlingMaxSteps;
 
     const int lastIndex = static_cast<int>(_data.optionPropsList.size()) - 1;
-    int target = getSelectedOptionIndex() + steps;
+    const int startIndex = getSelectedOptionIndex();
+    int target = startIndex + steps;
     if (target < 0)
         target = 0;
     if (target > lastIndex)
@@ -249,6 +250,8 @@ void LauncherView::_releaseDrag()
     moveTo(target);
     _update_camera_keyframe();
     updatePanelAnim();
+
+    HAL::PlaySfx(target == startIndex ? AUDIO::Sfx::release : AUDIO::Sfx::tick);
 }
 
 void LauncherView::handleTouch()
@@ -268,6 +271,8 @@ void LauncherView::handleTouch()
 
         if (_data.touchOnIcon)
         {
+            HAL::PlaySfx(AUDIO::Sfx::tap);
+
             Vector4D_t squeezeShape;
             squeezeShape.w = getSelectedKeyframe().w * 3 / 4;
             squeezeShape.h = getSelectedKeyframe().h * 3 / 4;
@@ -574,6 +579,7 @@ void LauncherView::onGoNext() { updatePanelAnim(); }
 
 void LauncherView::onClick()
 {
+    HAL::PlaySfx(AUDIO::Sfx::confirm);
     open(Vector4D_t(0 + getCameraOffset().x, 0, _data.screenWidth, _data.screenHeight));
     _data.selectorColor.jumpTo(Hex2Rgb(THEME::kLauncherSelector));
     _data.selectorColor.moveTo(Hex2Rgb(_data.optionPropsList[getSelectedOptionIndex()].themeColor));
@@ -599,6 +605,12 @@ void AppLauncher::onLauncherOpen()
     if (launcherView != nullptr)
     {
         launcherView->renderNow();
+    }
+
+    if (!bootSoundPlayed)
+    {
+        bootSoundPlayed = true;
+        HAL::PlayBootSound();
     }
 }
 

@@ -5,8 +5,6 @@
 
 namespace
 {
-    bool buttonWasPressed = false;
-    uint32_t buttonPressTick = 0;
     BUTTON::Event pendingEvent = BUTTON::Event::none;
 } // namespace
 
@@ -66,10 +64,10 @@ void HAL_Board::init()
     _sensor_init();
     _wifi_init();
     _sum_up();
+    audioInit();
 
     pinMode(HAL_PIN_BUTTON_BOOT, INPUT_PULLUP);
-    buttonWasPressed = digitalRead(HAL_PIN_BUTTON_BOOT) == LOW;
-    buttonPressTick = millis();
+    btnBoot.setRawState(millis(), digitalRead(HAL_PIN_BUTTON_BOOT) == LOW);
 }
 
 void HAL_Board::reboot()
@@ -80,30 +78,48 @@ void HAL_Board::reboot()
 
 void HAL_Board::buttonUpdate()
 {
-    bool pressed = digitalRead(HAL_PIN_BUTTON_BOOT) == LOW;
-    uint32_t now = millis();
+    btnBoot.setRawState(millis(), digitalRead(HAL_PIN_BUTTON_BOOT) == LOW);
 
-    if (pressed && !buttonWasPressed)
+    if (btnBoot.wasPressed())
     {
-        buttonWasPressed = true;
-        buttonPressTick = now;
+        playSfx(AUDIO::Sfx::tap);
     }
-    else if (!pressed && buttonWasPressed)
+    else if (btnBoot.wasReleased())
     {
-        buttonWasPressed = false;
-        if (now - buttonPressTick > 20)
-        {
-            pendingEvent = BUTTON::Event::click;
-        }
+        playSfx(AUDIO::Sfx::release);
+    }
+
+    if (btnBoot.wasHold())
+    {
+        pendingEvent = BUTTON::Event::hold;
+    }
+    else if (btnBoot.wasReleasedAfterHold())
+    {
+        pendingEvent = BUTTON::Event::holdRelease;
+    }
+    else if (btnBoot.wasClicked())
+    {
+        pendingEvent = BUTTON::Event::click;
     }
 }
 
 BUTTON::Event HAL_Board::getButtonEvent()
 {
-    BUTTON::Event event = pendingEvent;
+    const BUTTON::Event event = pendingEvent;
     pendingEvent = BUTTON::Event::none;
     return event;
 }
+
+bool HAL_Board::isButtonPressed() { return btnBoot.isPressed(); }
+
+bool HAL_Board::isButtonHolding() { return btnBoot.isHolding(); }
+
+uint32_t HAL_Board::getButtonPressedMs()
+{
+    return btnBoot.isPressed() ? millis() - btnBoot.lastChange() : 0;
+}
+
+void HAL_Board::setButtonSfx(bool enabled) { buttonConfig.sfxEnabled = enabled; }
 
 void HAL_Board::powerOff()
 {

@@ -10,6 +10,7 @@
 #include <LovyanGFX.hpp>
 #endif
 #include "lgfx_fx/lgfx_fx.h"
+#include "utils/button/Button_Class.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
@@ -101,6 +102,13 @@ namespace BUTTON
     {
         none = 0,
         click,
+        hold,
+        holdRelease,
+    };
+
+    struct Config_t
+    {
+        bool sfxEnabled = true;
     };
 } // namespace BUTTON
 
@@ -122,6 +130,15 @@ namespace PMIC
 namespace AUDIO
 {
     constexpr int kBandCount = 20;
+
+    enum class Sfx
+    {
+        tap = 0,
+        release,
+        tick,
+        confirm,
+        back,
+    };
 
     struct Spectrum_t
     {
@@ -183,6 +200,9 @@ protected:
     AUDIO::Spectrum_t _spectrum;
     WIFI::Info_t _wifi;
     BUTTON::Event _button_event = BUTTON::Event::none;
+    m5::Button_Class btnBoot;
+    BUTTON::Config_t buttonConfig;
+    int _volume = 70;
 
 public:
     static LGFX_Device* GetDisplay() { return Get()->_display; }
@@ -291,6 +311,16 @@ public:
     virtual void audioUpdate() {}
     static AUDIO::Spectrum_t& GetAudioSpectrum() { return Get()->_spectrum; }
 
+    static void AudioInit() { Get()->audioInit(); }
+    virtual void audioInit() {}
+    static void PlayBootSound() { Get()->playBootSound(); }
+    virtual void playBootSound() {}
+    static void PlaySfx(AUDIO::Sfx sfx) { Get()->playSfx(sfx); }
+    virtual void playSfx(AUDIO::Sfx sfx) {}
+    static void SetVolume(int percent) { Get()->setVolume(percent); }
+    virtual void setVolume(int percent) {}
+    static int GetVolume() { return Get()->_volume; }
+
     static void WifiUpdate() { Get()->wifiUpdate(); }
     virtual void wifiUpdate() {}
     static WIFI::Info_t& GetWifiInfo() { return Get()->_wifi; }
@@ -301,6 +331,15 @@ public:
     virtual void buttonUpdate() {}
     static BUTTON::Event GetButtonEvent() { return Get()->getButtonEvent(); }
     virtual BUTTON::Event getButtonEvent() { return BUTTON::Event::none; }
+    static bool IsButtonPressed() { return Get()->isButtonPressed(); }
+    virtual bool isButtonPressed() { return false; }
+    static bool IsButtonHolding() { return Get()->isButtonHolding(); }
+    virtual bool isButtonHolding() { return false; }
+    static uint32_t GetButtonPressedMs() { return Get()->getButtonPressedMs(); }
+    virtual uint32_t getButtonPressedMs() { return 0; }
+    static void SetButtonSfx(bool enabled) { Get()->setButtonSfx(enabled); }
+    virtual void setButtonSfx(bool enabled) {}
+    static bool GetButtonSfx() { return Get()->buttonConfig.sfxEnabled; }
 
     static void LvglInit() { Get()->lvglInit(); }
     virtual void lvglInit() {}

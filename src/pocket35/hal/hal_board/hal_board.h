@@ -45,15 +45,23 @@ public:
     void ntpSync() override;
     void pmicUpdate() override;
 
+    void audioInit() override;
     void audioOpen() override;
     void audioClose() override;
     void audioUpdate() override;
+    void playBootSound() override;
+    void playSfx(AUDIO::Sfx sfx) override;
+    void setVolume(int percent) override;
 
     void wifiUpdate() override;
     void wifiStartConfig() override;
 
     void buttonUpdate() override;
     BUTTON::Event getButtonEvent() override;
+    bool isButtonPressed() override;
+    bool isButtonHolding() override;
+    uint32_t getButtonPressedMs() override;
+    void setButtonSfx(bool enabled) override;
 
     void lvglInit() override;
     void lvglUpdate() override;

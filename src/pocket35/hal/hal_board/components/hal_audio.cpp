@@ -1,9 +1,12 @@
 #include "../hal_config.h"
 #include "../hal_board.h"
+#include "boot_sound.h"
 #include "driver/i2s.h"
 #include "es8311.h"
 #include <cmath>
 #include <cstring>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 namespace
 {
@@ -23,7 +26,18 @@ namespace
     constexpr int kPeakSeedFrames = 3;
     constexpr int kPeakHoldFrames = 60;
 
+    constexpr int kSfxMaxSamples = 1024;
+    constexpr int kSfxSlotCount = 3;
+    constexpr int kSfxFadeSamples = 32;
+    constexpr int kSfxWriteChunk = 256;
+    constexpr int kSfxTaskStack = 4096;
+    constexpr UBaseType_t kSfxTaskPriority = 4;
+    constexpr float kSfxAmplitude = 32767.0f * 0.5f;
+    constexpr float kTwoPi = 6.28318530718f;
+
     es8311_handle_t codec = nullptr;
+    bool deviceReady = false;
+    bool fftRunning = false;
 
     int16_t chunk[kChunkFrames * 2];
     float window[kFftSize];
@@ -36,13 +50,42 @@ namespace
     float normalizationLevel = 0.002f;
     int bandEdges[kBands + 1];
     int accumCount = 0;
-    bool opened = false;
 
     float peakWindow[kPeakMedianSize];
     int peakWindowCount = 0;
     int peakWindowIndex = 0;
     float peakTrackedHz = 0.0f;
     int peakIdleFrames = 0;
+
+    struct NoteSpec
+    {
+        int midi;
+        float duration;
+    };
+
+    struct SfxSpec
+    {
+        NoteSpec notes[2];
+        int noteCount;
+        float gain;
+    };
+
+    constexpr SfxSpec kSfxTable[] = {
+        {{{88, 0.024f}, {0, 0.0f}}, 1, 0.55f},
+        {{{91, 0.020f}, {0, 0.0f}}, 1, 0.38f},
+        {{{84, 0.016f}, {0, 0.0f}}, 1, 0.34f},
+        {{{88, 0.030f}, {95, 0.045f}}, 2, 0.55f},
+        {{{83, 0.026f}, {76, 0.040f}}, 2, 0.45f},
+    };
+
+    TaskHandle_t sfxTask = nullptr;
+    int16_t sfxSlots[kSfxSlotCount][kSfxMaxSamples];
+    int sfxSlotIndex = 0;
+    const int16_t* sfxPendingSamples = nullptr;
+    int sfxPendingCount = 0;
+    portMUX_TYPE sfxLock = portMUX_INITIALIZER_UNLOCKED;
+
+    float midiToHz(int midi) { return 440.0f * powf(2.0f, static_cast<float>(midi - 69) / 12.0f); }
 
     float meanOf(const float* data, int count)
     {
@@ -55,7 +98,7 @@ namespace
     void buildWindow()
     {
         for (int i = 0; i < kFftSize; i++)
-            window[i] = 0.5f * (1.0f - cosf(2.0f * static_cast<float>(M_PI) * i / (kFftSize - 1)));
+            window[i] = 0.5f * (1.0f - cosf(kTwoPi * i / (kFftSize - 1)));
     }
 
     void buildBandEdges()
@@ -100,7 +143,7 @@ namespace
 
         for (int len = 2; len <= kFftSize; len <<= 1)
         {
-            const float angle = -2.0f * static_cast<float>(M_PI) / static_cast<float>(len);
+            const float angle = -kTwoPi / static_cast<float>(len);
             const float wlenRe = cosf(angle);
             const float wlenIm = sinf(angle);
             const int half = len >> 1;
@@ -325,7 +368,7 @@ namespace
     bool openI2s()
     {
         i2s_config_t config = {};
-        config.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX);
+        config.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_RX);
         config.sample_rate = kSampleRate;
         config.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
         config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
@@ -334,7 +377,7 @@ namespace
         config.dma_buf_count = 6;
         config.dma_buf_len = 256;
         config.use_apll = false;
-        config.tx_desc_auto_clear = false;
+        config.tx_desc_auto_clear = true;
         config.fixed_mclk = 0;
 
         if (i2s_driver_install(I2S_NUM_0, &config, 0, nullptr) != ESP_OK)
@@ -383,20 +426,149 @@ namespace
             return false;
         }
 
+        es8311_voice_mute(codec, false);
         es8311_voice_volume_set(codec, 70, nullptr);
         es8311_microphone_config(codec, false);
         es8311_microphone_gain_set(codec, ES8311_MIC_GAIN_30DB);
         return true;
     }
+
+    bool ensureDevice()
+    {
+        if (deviceReady)
+            return true;
+
+        if (!openI2s())
+        {
+            printf("[audio] i2s open failed\n");
+            return false;
+        }
+
+        if (!openCodec())
+        {
+            printf("[audio] es8311 open failed\n");
+            i2s_stop(I2S_NUM_0);
+            i2s_driver_uninstall(I2S_NUM_0);
+            return false;
+        }
+
+        deviceReady = true;
+        return true;
+    }
+
+    bool writePcm(const int16_t* samples, int count)
+    {
+        int16_t stereo[kSfxWriteChunk * 2];
+        int offset = 0;
+
+        while (offset < count)
+        {
+            if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+                return false;
+
+            int take = count - offset;
+            if (take > kSfxWriteChunk)
+                take = kSfxWriteChunk;
+
+            for (int i = 0; i < take; i++)
+            {
+                const int16_t value = samples[offset + i];
+                stereo[i * 2] = value;
+                stereo[i * 2 + 1] = value;
+            }
+
+            size_t written = 0;
+            i2s_write(I2S_NUM_0, stereo, static_cast<size_t>(take) * 2 * sizeof(int16_t), &written, portMAX_DELAY);
+            offset += take;
+        }
+
+        return true;
+    }
+
+    void sfxTaskEntry(void*)
+    {
+        for (;;)
+        {
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+            for (;;)
+            {
+                portENTER_CRITICAL(&sfxLock);
+                const int16_t* samples = sfxPendingSamples;
+                const int count = sfxPendingCount;
+                sfxPendingCount = 0;
+                portEXIT_CRITICAL(&sfxLock);
+
+                if (count <= 0)
+                    break;
+
+                if (!writePcm(samples, count))
+                    continue;
+            }
+        }
+    }
+
+    void startPlayback(const int16_t* samples, int count)
+    {
+        if (sfxTask == nullptr || count <= 0)
+            return;
+
+        portENTER_CRITICAL(&sfxLock);
+        sfxPendingSamples = samples;
+        sfxPendingCount = count;
+        portEXIT_CRITICAL(&sfxLock);
+
+        xTaskNotifyGive(sfxTask);
+    }
+
+    int synthesize(const SfxSpec& spec, int16_t* out, int maxSamples)    {
+        int cursor = 0;
+
+        for (int noteIndex = 0; noteIndex < spec.noteCount && cursor < maxSamples; noteIndex++)
+        {
+            const NoteSpec& note = spec.notes[noteIndex];
+            const int total = static_cast<int>(static_cast<float>(kSampleRate) * note.duration);
+            const float step = kTwoPi * midiToHz(note.midi) / static_cast<float>(kSampleRate);
+            float angle = 0.0f;
+
+            for (int i = 0; i < total && cursor < maxSamples; i++)
+            {
+                float envelope = 1.0f;
+                const int remain = total - i;
+                if (remain < kSfxFadeSamples)
+                    envelope = static_cast<float>(remain) / static_cast<float>(kSfxFadeSamples);
+                if (i < kSfxFadeSamples)
+                    envelope *= static_cast<float>(i) / static_cast<float>(kSfxFadeSamples);
+
+                out[cursor++] = static_cast<int16_t>(kSfxAmplitude * spec.gain * envelope * sinf(angle));
+                angle += step;
+                if (angle > kTwoPi)
+                    angle -= kTwoPi;
+            }
+        }
+
+        return cursor;
+    }
+
 } // namespace
 
-void HAL_Board::audioOpen()
+void HAL_Board::audioInit()
 {
-    if (opened)
+    if (deviceReady)
         return;
 
     buildWindow();
     buildBandEdges();
+
+    if (!ensureDevice())
+        return;
+
+    xTaskCreate(sfxTaskEntry, "audio_sfx", kSfxTaskStack, nullptr, kSfxTaskPriority, &sfxTask);
+    printf("[audio] device ready %d Hz\n", kSampleRate);
+}
+
+void HAL_Board::audioOpen()
+{
     memset(rawBands, 0, sizeof(rawBands));
     memset(smoothBands, 0, sizeof(smoothBands));
     memset(noiseFloor, 0, sizeof(noiseFloor));
@@ -404,46 +576,28 @@ void HAL_Board::audioOpen()
     normalizationLevel = 0.002f;
     resetPeakTracking();
 
-    if (!openI2s())
-    {
-        printf("[audio] i2s open failed\n");
+    if (!ensureDevice())
         return;
+
+    if (window[0] == 0.0f)
+    {
+        buildWindow();
+        buildBandEdges();
     }
 
-    if (!openCodec())
-    {
-        printf("[audio] es8311 open failed\n");
-        i2s_stop(I2S_NUM_0);
-        i2s_driver_uninstall(I2S_NUM_0);
-        return;
-    }
-
-    opened = true;
+    fftRunning = true;
     _spectrum.ready = true;
-    printf("[audio] ready %d Hz, fft %d\n", kSampleRate, kFftSize);
 }
 
 void HAL_Board::audioClose()
 {
-    if (!opened)
-        return;
-
-    i2s_stop(I2S_NUM_0);
-    i2s_driver_uninstall(I2S_NUM_0);
-
-    if (codec != nullptr)
-    {
-        es8311_delete(codec);
-        codec = nullptr;
-    }
-
-    opened = false;
+    fftRunning = false;
     _spectrum.ready = false;
 }
 
 void HAL_Board::audioUpdate()
 {
-    if (!opened)
+    if (!fftRunning || !deviceReady)
         return;
 
     size_t bytesRead = 0;
@@ -482,4 +636,45 @@ void HAL_Board::audioUpdate()
             accumCount = keep;
         }
     }
+}
+
+void HAL_Board::playBootSound()
+{
+    if (!ensureDevice())
+        return;
+
+    startPlayback(kBootSound, kBootSoundSampleCount);
+}
+
+void HAL_Board::playSfx(AUDIO::Sfx sfx)
+{
+    if (!buttonConfig.sfxEnabled)
+        return;
+
+    if (!ensureDevice())
+        return;
+
+    const int index = static_cast<int>(sfx);
+    constexpr int specCount = static_cast<int>(sizeof(kSfxTable) / sizeof(kSfxTable[0]));
+    if (index < 0 || index >= specCount)
+        return;
+
+    int16_t* slot = sfxSlots[sfxSlotIndex];
+    sfxSlotIndex = (sfxSlotIndex + 1) % kSfxSlotCount;
+
+    const int count = synthesize(kSfxTable[index], slot, kSfxMaxSamples);
+    startPlayback(slot, count);
+}
+
+void HAL_Board::setVolume(int percent)
+{
+    if (percent < 0)
+        percent = 0;
+    if (percent > 100)
+        percent = 100;
+
+    _volume = percent;
+
+    if (codec != nullptr)
+        es8311_voice_volume_set(codec, percent, nullptr);
 }

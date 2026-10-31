@@ -66,6 +66,17 @@ flowchart TB
 | Watch Face | Four swappable dials: classic, number flow, big number, minimal |
 | Template | App scaffold for quick iteration |
 
+## Audio
+
+| Sound | Trigger |
+| --- | --- |
+| Boot | First launcher open, 1.8 s jingle resampled to 16 kHz |
+| Tap / Release | Icon press and release, BOOT key down and up |
+| Tick | Launcher swipe lands on another icon |
+| Confirm | Launcher opens an app |
+
+Speaker and microphone share one full-duplex I2S channel at 16 kHz. The boot jingle and the button state machine are ported from [M5StopWatch-UserDemo](https://github.com/m5stack/M5StopWatch-UserDemo). Mute UI sounds with `HAL::SetButtonSfx(false)`.
+
 ## Onboard peripherals
 
 | Chip | Function | I2C address |
@@ -73,7 +84,7 @@ flowchart TB
 | QMI8658 | 6-axis IMU | 0x6B |
 | PCF85063 | RTC | 0x51 |
 | AXP2101 | PMIC / battery | 0x34 |
-| ES8311 | Audio codec | 0x18 |
+| ES8311 | Audio codec (mic + speaker) | 0x18 |
 | TCA9554 | GPIO expander | 0x20 |
 | FT6336 | Touch controller | 0x38 |
 
