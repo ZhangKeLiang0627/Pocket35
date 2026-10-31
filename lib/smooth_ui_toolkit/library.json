@@ -1,0 +1,24 @@
+{
+    "name": "SmoothUIToolKit",
+    "version": "1.1.0",
+    "description": "Smooth UI toolkit with easing path transitions",
+    "keywords": "ui, smooth, easing",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Forairaaaaa/smooth_ui_toolkit.git"
+    },
+    "authors": [
+        {
+            "name": "Forairaaaaa",
+            "email": "applesyqd@outlook.com",
+            "url": "https://github.com/Forairaaaaa"
+        }
+    ],
+    "license": "MIT",
+    "frameworks": "*",
+    "platforms": "*",
+    "build": {
+        "srcDir": "src",
+        "includeDir": "src"
+    }
+}

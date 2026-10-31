@@ -1,0 +1,34 @@
+#pragma once
+
+#define HAL_PIN_LCD_MOSI 1
+#define HAL_PIN_LCD_MISO -1
+#define HAL_PIN_LCD_SCLK 5
+#define HAL_PIN_LCD_DC 3
+#define HAL_PIN_LCD_CS -1
+#define HAL_PIN_LCD_RST -1
+#define HAL_PIN_LCD_BL 6
+
+#define HAL_PIN_I2C_SDA 8
+#define HAL_PIN_I2C_SCL 7
+
+#define HAL_PIN_TP_INT -1
+#define HAL_PIN_TP_RST -1
+
+#define HAL_PIN_BUTTON_BOOT 0
+
+#define HAL_I2C_ADDR_IO_EXPANDER 0x20
+#define HAL_I2C_ADDR_TOUCH 0x38
+
+#define HAL_IO_EXPANDER_PIN_LCD_RST 1
+
+#define HAL_PANEL_WIDTH 320
+#define HAL_PANEL_HEIGHT 480
+#define HAL_LCD_ROTATION 1
+#define HAL_SCREEN_WIDTH 480
+#define HAL_SCREEN_HEIGHT 320
+
+#define HAL_TOUCH_SWAP_XY 1
+#define HAL_TOUCH_MIRROR_X 0
+#define HAL_TOUCH_MIRROR_Y 1
+
+#define HAL_LAUNCHER_FONT &fonts::DejaVu18
