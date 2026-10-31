@@ -53,6 +53,50 @@ namespace BLE
     };
 } // namespace BLE
 
+namespace IMU
+{
+    struct Data_t
+    {
+        float accelX = 0.0f;
+        float accelY = 0.0f;
+        float accelZ = 0.0f;
+        float gyroX = 0.0f;
+        float gyroY = 0.0f;
+        float gyroZ = 0.0f;
+        float roll = 0.0f;
+        float pitch = 0.0f;
+        float temperature = 0.0f;
+        bool present = false;
+    };
+} // namespace IMU
+
+namespace RTC
+{
+    struct Time_t
+    {
+        int year = 2026;
+        int month = 1;
+        int day = 1;
+        int hour = 0;
+        int minute = 0;
+        int second = 0;
+        bool valid = false;
+    };
+} // namespace RTC
+
+namespace PMIC
+{
+    struct Battery_t
+    {
+        bool present = false;
+        bool charging = false;
+        bool vbus = false;
+        float voltage = 0.0f;
+        float percentage = 0.0f;
+        bool valid = false;
+    };
+} // namespace PMIC
+
 class HAL
 {
 private:
@@ -79,6 +123,9 @@ protected:
     BLE::Peer_t _ble_peer;
     BLE::Stats_t _ble_stats;
     std::function<void(const uint8_t*, size_t)> _ble_rx_callback;
+    IMU::Data_t _imu;
+    RTC::Time_t _rtc_time;
+    PMIC::Battery_t _battery;
 
 public:
     static LGFX_Device* GetDisplay() { return Get()->_display; }
@@ -158,6 +205,20 @@ public:
             Get()->_ble_rx_callback(data, length);
         }
     }
+
+    static void ImuUpdate() { Get()->imuUpdate(); }
+    virtual void imuUpdate() {}
+    static IMU::Data_t& GetImuData() { return Get()->_imu; }
+
+    static void RtcUpdate() { Get()->rtcUpdate(); }
+    virtual void rtcUpdate() {}
+    static RTC::Time_t& GetRtcTime() { return Get()->_rtc_time; }
+    static void RtcSetTime(const RTC::Time_t& t) { Get()->rtcSetTime(t); }
+    virtual void rtcSetTime(const RTC::Time_t& t) {}
+
+    static void PmicUpdate() { Get()->pmicUpdate(); }
+    virtual void pmicUpdate() {}
+    static PMIC::Battery_t& GetBattery() { return Get()->_battery; }
 
 protected:
     void setBleState(BLE::State state) { _ble_state = state; }

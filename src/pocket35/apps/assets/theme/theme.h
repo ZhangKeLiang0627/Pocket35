@@ -11,4 +11,5 @@ namespace THEME
 
     inline constexpr uint32_t kAppLinkTheme = 0x2D69EB;
     inline constexpr uint32_t kAppTemplateTheme = 0xF1883D;
+    inline constexpr uint32_t kAppImuTheme = 0x8E5CF0;
 } // namespace THEME

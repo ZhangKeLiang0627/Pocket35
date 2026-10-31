@@ -3,6 +3,7 @@
 #include "apps/assets/fonts/fonts.h"
 #include "apps/assets/theme/theme.h"
 #include <cstdlib>
+#include <cstdio>
 
 using namespace SmoothUIToolKit;
 using namespace SmoothUIToolKit::SelectMenu;
@@ -194,9 +195,42 @@ void LauncherView::renderPanel()
     }
 }
 
+void LauncherView::renderStatusBar()
+{
+    auto* canvas = HAL::GetCanvas();
+    canvas->setFont(&fonts::DejaVu18);
+    canvas->setTextSize(1);
+    canvas->setTextColor(THEME::kLauncherPanel, THEME::kLauncherBackground);
+
+    char buffer[24];
+
+    auto& rtc = HAL::GetRtcTime();
+    snprintf(buffer, sizeof(buffer), "%02d:%02d", rtc.hour, rtc.minute);
+    canvas->setTextDatum(top_left);
+    canvas->drawString(buffer, 16, 6);
+
+    auto& battery = HAL::GetBattery();
+    if (battery.valid && battery.present)
+    {
+        snprintf(buffer, sizeof(buffer), "%s%d%%", battery.charging ? "+" : "", static_cast<int>(battery.percentage));
+    }
+    else if (battery.vbus)
+    {
+        snprintf(buffer, sizeof(buffer), "USB");
+    }
+    else
+    {
+        snprintf(buffer, sizeof(buffer), "--");
+    }
+    canvas->setTextDatum(top_right);
+    canvas->drawString(buffer, _data.screenWidth - 16, 6);
+}
+
 void LauncherView::onRender()
 {
     HAL::GetCanvas()->fillScreen(THEME::kLauncherBackground);
+
+    renderStatusBar();
 
     if (isOpening())
     {
@@ -263,6 +297,9 @@ void AppLauncher::onLauncherOpen()
 
 void AppLauncher::onLauncherRunning()
 {
+    HAL::RtcUpdate();
+    HAL::PmicUpdate();
+
     if (launcherView != nullptr)
     {
         launcherView->update(HAL::Millis());

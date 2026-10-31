@@ -41,6 +41,7 @@ namespace VIEW
         void renderSelector();
         void renderOptions();
         void renderPanel();
+        void renderStatusBar();
         void updatePanelAnim();
         void handleTouch();
 

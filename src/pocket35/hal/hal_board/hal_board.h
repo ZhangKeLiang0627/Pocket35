@@ -12,6 +12,7 @@ private:
     void _disp_init();
     void _disp_logo();
     void _touch_init();
+    void _sensor_init();
     void _sum_up();
 
 public:
@@ -36,4 +37,9 @@ public:
     bool bleIsConnected() override;
     bool bleSend(const uint8_t* data, size_t length) override;
     void bleUpdate() override;
+
+    void imuUpdate() override;
+    void rtcUpdate() override;
+    void rtcSetTime(const RTC::Time_t& t) override;
+    void pmicUpdate() override;
 };
