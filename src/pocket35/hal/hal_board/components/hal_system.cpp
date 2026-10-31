@@ -56,6 +56,7 @@ void HAL_Board::init()
     _disp_init();
     _touch_init();
     _sensor_init();
+    _wifi_init();
     _sum_up();
 }
 

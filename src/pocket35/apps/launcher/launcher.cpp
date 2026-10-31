@@ -4,6 +4,7 @@
 #include "apps/assets/theme/theme.h"
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 
 using namespace SmoothUIToolKit;
 using namespace SmoothUIToolKit::SelectMenu;
@@ -31,6 +32,31 @@ namespace
     constexpr int kPanelY = 262;
 
     constexpr int kSwipeThreshold = 60;
+
+    void buildStatusText(char* buffer, size_t size)
+    {
+        auto& rtc = HAL::GetRtcTime();
+        auto& battery = HAL::GetBattery();
+
+        char timeBuf[16];
+        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", rtc.hour, rtc.minute);
+
+        char battBuf[16];
+        if (battery.valid && battery.present)
+        {
+            snprintf(battBuf, sizeof(battBuf), "%s%d%%", battery.charging ? "+" : "", static_cast<int>(battery.percentage));
+        }
+        else if (battery.vbus)
+        {
+            snprintf(battBuf, sizeof(battBuf), "USB");
+        }
+        else
+        {
+            snprintf(battBuf, sizeof(battBuf), "--");
+        }
+
+        snprintf(buffer, size, "%s|%s", timeBuf, battBuf);
+    }
 } // namespace
 
 void LauncherView::init(int width, int height)
@@ -73,6 +99,22 @@ void LauncherView::addAppOption(const AppOptionProps_t& props)
     addOption(newProps);
 }
 
+void LauncherView::setSelectedOptionIndex(int index)
+{
+    jumpTo(index);
+
+    const int centerOffset = (_data.screenWidth - kIconWidth) / 2;
+    getCamera().jumpTo(getSelectedKeyframe().x - centerOffset, 0);
+}
+
+bool LauncherView::isTouchInsideIcon(int16_t x, int16_t y)
+{
+    const auto& keyframe = getSelectedKeyframe();
+    const int screenX = keyframe.x - getCameraOffset().x;
+    const int screenY = keyframe.y;
+    return x >= screenX && x <= screenX + keyframe.w && y >= screenY && y <= screenY + keyframe.h;
+}
+
 void LauncherView::_update_camera_keyframe()
 {
     const int centerOffset = (_data.screenWidth - kIconWidth) / 2;
@@ -90,13 +132,17 @@ void LauncherView::handleTouch()
     {
         _data.touchStartX = touch.x;
         _data.touchMoved = false;
+        _data.touchOnIcon = isTouchInsideIcon(touch.x, touch.y);
 
-        Vector4D_t squeezeShape;
-        squeezeShape.w = getSelectedKeyframe().w * 3 / 4;
-        squeezeShape.h = getSelectedKeyframe().h * 3 / 4;
-        squeezeShape.x = getSelectedKeyframe().x + getSelectedKeyframe().w / 8;
-        squeezeShape.y = getSelectedKeyframe().y + getSelectedKeyframe().h / 8;
-        press(squeezeShape);
+        if (_data.touchOnIcon)
+        {
+            Vector4D_t squeezeShape;
+            squeezeShape.w = getSelectedKeyframe().w * 3 / 4;
+            squeezeShape.h = getSelectedKeyframe().h * 3 / 4;
+            squeezeShape.x = getSelectedKeyframe().x + getSelectedKeyframe().w / 8;
+            squeezeShape.y = getSelectedKeyframe().y + getSelectedKeyframe().h / 8;
+            press(squeezeShape);
+        }
     }
     else if (touch.isPressed && _data.wasTouched)
     {
@@ -114,10 +160,11 @@ void LauncherView::handleTouch()
     }
     else if (!touch.isPressed && _data.wasTouched)
     {
-        if (!_data.touchMoved)
+        if (!_data.touchMoved && _data.touchOnIcon && isTouchInsideIcon(touch.x, touch.y))
         {
             release();
         }
+        _data.touchOnIcon = false;
     }
 
     _data.wasTouched = touch.isPressed;
@@ -187,11 +234,6 @@ void LauncherView::renderPanel()
         HAL::GetCanvas()->drawString(_data.optionPropsList[getSelectedOptionIndex()].name.c_str(),
                                      _data.screenWidth / 2,
                                      panelY + kPanelHeight / 2);
-
-        const int arrowX = panelX + kPanelWidth - 34;
-        const int arrowY = panelY + kPanelHeight / 2;
-        HAL::GetCanvas()->fillTriangle(arrowX - 8, arrowY - 10, arrowX - 8, arrowY + 10, arrowX + 8, arrowY,
-                                       THEME::kLauncherIconBackground);
     }
 }
 
@@ -228,6 +270,24 @@ void LauncherView::renderStatusBar()
 
 void LauncherView::onRender()
 {
+    const bool animating = !_data.selectorColor.isFinish() || !_data.panelTransition.isFinish() ||
+                           !getSelectorPostion().isFinish() || !getSelectorShape().isFinish() ||
+                           !getCamera().isFinish() || isOpening();
+
+    char statusText[32];
+    buildStatusText(statusText, sizeof(statusText));
+    const bool statusChanged = strcmp(statusText, _data.lastStatusText) != 0;
+
+    if (!animating && !_data.isDirty && !statusChanged && !_data.wasAnimating)
+    {
+        return;
+    }
+
+    _data.isDirty = false;
+    _data.wasAnimating = animating;
+    strncpy(_data.lastStatusText, statusText, sizeof(_data.lastStatusText) - 1);
+    _data.lastStatusText[sizeof(_data.lastStatusText) - 1] = '\0';
+
     HAL::GetCanvas()->fillScreen(THEME::kLauncherBackground);
 
     renderStatusBar();
@@ -297,8 +357,14 @@ void AppLauncher::onLauncherOpen()
 
 void AppLauncher::onLauncherRunning()
 {
-    HAL::RtcUpdate();
-    HAL::PmicUpdate();
+    static unsigned long lastSensorMs = 0;
+    const unsigned long now = HAL::Millis();
+    if (now - lastSensorMs >= 1000)
+    {
+        lastSensorMs = now;
+        HAL::RtcUpdate();
+        HAL::PmicUpdate();
+    }
 
     if (launcherView != nullptr)
     {
@@ -320,6 +386,8 @@ void AppLauncher::createLauncherView()
     launcherView = new VIEW::LauncherView;
     launcherView->init(HAL::GetCanvas()->width(), HAL::GetCanvas()->height());
 
+    int restoreIndex = -1;
+    int index = 0;
     for (const auto& props : getAppProps())
     {
         VIEW::LauncherView::AppOptionProps_t option;
@@ -331,9 +399,22 @@ void AppLauncher::createLauncherView()
             option.themeColor = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(props.info.userData));
         }
         launcherView->addAppOption(option);
+        if (props.appID == lastSelectedAppId)
+        {
+            restoreIndex = index;
+        }
+        index++;
     }
 
-    launcherView->setOpenCallback([this](int appID) { openApp(appID); });
+    launcherView->setOpenCallback([this](int appID) {
+        lastSelectedAppId = appID;
+        openApp(appID);
+    });
+
+    if (restoreIndex >= 0)
+    {
+        launcherView->setSelectedOptionIndex(restoreIndex);
+    }
 }
 
 void AppLauncher::destroyLauncherView()

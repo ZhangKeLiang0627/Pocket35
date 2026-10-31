@@ -13,6 +13,7 @@ private:
     void _disp_logo();
     void _touch_init();
     void _sensor_init();
+    void _wifi_init();
     void _sum_up();
 
 public:
@@ -42,4 +43,7 @@ public:
     void rtcUpdate() override;
     void rtcSetTime(const RTC::Time_t& t) override;
     void pmicUpdate() override;
+
+    void wifiUpdate() override;
+    void wifiStartConfig() override;
 };

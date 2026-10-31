@@ -30,6 +30,7 @@ void POCKET35::Setup()
 void POCKET35::Loop()
 {
     HAL::UpdateTouch();
+    HAL::WifiUpdate();
     mooncake::GetMooncake().update();
 }
 

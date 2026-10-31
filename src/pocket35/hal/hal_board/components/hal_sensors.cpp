@@ -11,6 +11,9 @@ namespace
     SensorQMI8658 imuDevice;
     SensorPCF85063 rtcDevice;
     PmicAXP2101 pmicDevice;
+
+    uint32_t lastImuTick = 0;
+    constexpr float kYawDeadbandDeg = 0.6f;
 } // namespace
 
 void HAL_Board::_sensor_init()
@@ -64,7 +67,7 @@ void HAL_Board::_sensor_init()
     {
         pmicDevice.enableModule(PmicAXP2101::Module::GENERAL_ADC, true);
         auto& adc = pmicDevice.adc();
-        adc.enableChannels(PmicAdcBase::Channel::BAT_VOLTAGE | PmicAdcBase::Channel::BAT_PERCENTAGE);
+        adc.enableChannels(PmicAdcBase::Channel::BAT_VOLTAGE | PmicAdcBase::Channel::BAT_PERCENTAGE | PmicAdcBase::Channel::DIE_TEMPERATURE);
         _battery.valid = true;
         printf("axp2101 pmic ready\n");
     }
@@ -79,6 +82,14 @@ void HAL_Board::imuUpdate()
     if (!_imu.present)
     {
         return;
+    }
+
+    uint32_t now = millis();
+    float dt = (now - lastImuTick) / 1000.0f;
+    lastImuTick = now;
+    if (dt <= 0.0f || dt > 0.2f)
+    {
+        dt = 0.05f;
     }
 
     if (imuDevice.isDataReady(static_cast<uint8_t>(ImuBase::DataReadyMask::ACCEL)))
@@ -107,6 +118,11 @@ void HAL_Board::imuUpdate()
 
     _imu.roll = atan2f(_imu.accelY, _imu.accelZ) * 180.0f / (float)M_PI;
     _imu.pitch = atan2f(-_imu.accelX, sqrtf(_imu.accelY * _imu.accelY + _imu.accelZ * _imu.accelZ)) * 180.0f / (float)M_PI;
+
+    if (fabsf(_imu.gyroZ) > kYawDeadbandDeg)
+    {
+        _imu.yaw += _imu.gyroZ * dt;
+    }
 }
 
 void HAL_Board::rtcUpdate()
@@ -162,10 +178,16 @@ void HAL_Board::pmicUpdate()
     {
         _battery.percentage = value;
     }
+    if (adc.read(PmicAdcBase::Channel::DIE_TEMPERATURE, value))
+    {
+        _battery.dieTemp = value;
+    }
 
     auto* charger = pmicDevice.getCharger();
     if (charger != nullptr)
     {
-        _battery.charging = charger->getStatus().charging;
+        auto status = charger->getStatus();
+        _battery.charging = status.charging;
+        _battery.chargeDone = status.chargeDone;
     }
 }

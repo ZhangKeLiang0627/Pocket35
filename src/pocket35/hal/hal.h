@@ -65,6 +65,7 @@ namespace IMU
         float gyroZ = 0.0f;
         float roll = 0.0f;
         float pitch = 0.0f;
+        float yaw = 0.0f;
         float temperature = 0.0f;
         bool present = false;
     };
@@ -90,12 +91,33 @@ namespace PMIC
     {
         bool present = false;
         bool charging = false;
+        bool chargeDone = false;
         bool vbus = false;
         float voltage = 0.0f;
         float percentage = 0.0f;
+        float dieTemp = 0.0f;
         bool valid = false;
     };
 } // namespace PMIC
+
+namespace WIFI
+{
+    enum class State
+    {
+        idle = 0,
+        configAp,
+        connecting,
+        connected,
+    };
+
+    struct Info_t
+    {
+        State state = State::idle;
+        std::string ssid;
+        std::string ip;
+        bool hasCredential = false;
+    };
+} // namespace WIFI
 
 class HAL
 {
@@ -126,6 +148,7 @@ protected:
     IMU::Data_t _imu;
     RTC::Time_t _rtc_time;
     PMIC::Battery_t _battery;
+    WIFI::Info_t _wifi;
 
 public:
     static LGFX_Device* GetDisplay() { return Get()->_display; }
@@ -219,6 +242,12 @@ public:
     static void PmicUpdate() { Get()->pmicUpdate(); }
     virtual void pmicUpdate() {}
     static PMIC::Battery_t& GetBattery() { return Get()->_battery; }
+
+    static void WifiUpdate() { Get()->wifiUpdate(); }
+    virtual void wifiUpdate() {}
+    static WIFI::Info_t& GetWifiInfo() { return Get()->_wifi; }
+    static void WifiStartConfig() { Get()->wifiStartConfig(); }
+    virtual void wifiStartConfig() {}
 
 protected:
     void setBleState(BLE::State state) { _ble_state = state; }

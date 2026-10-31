@@ -3,6 +3,8 @@
 #include "launcher/launcher.h"
 #include "app_link/app_link.h"
 #include "app_imu/app_imu.h"
+#include "app_battery/app_battery.h"
+#include "app_wifi/app_wifi.h"
 #include "app_template/app_template.h"
 
 namespace POCKET35_APPS
@@ -12,6 +14,8 @@ namespace POCKET35_APPS
         int launcher = -1;
         int link = -1;
         int imu = -1;
+        int battery = -1;
+        int wifi = -1;
         int appTemplate = -1;
     };
 
@@ -22,6 +26,8 @@ namespace POCKET35_APPS
         ids.launcher = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppLauncher>());
         ids.link = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppLink>());
         ids.imu = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppImu>());
+        ids.battery = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppBattery>());
+        ids.wifi = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppWifi>());
         ids.appTemplate = mooncake.installApp(std::make_unique<MOONCAKE::APPS::AppTemplate>());
 
         return ids;

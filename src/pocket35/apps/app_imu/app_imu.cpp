@@ -2,6 +2,7 @@
 #include "hal/hal.h"
 #include "apps/assets/fonts/fonts.h"
 #include "apps/assets/theme/theme.h"
+#include <cmath>
 #include <cstdio>
 
 using namespace MOONCAKE::APPS;
@@ -123,18 +124,28 @@ void AppImu::render()
         return;
     }
 
+    float yawWrapped = fmodf(imu.yaw + 180.0f, 360.0f);
+    if (yawWrapped < 0.0f)
+    {
+        yawWrapped += 360.0f;
+    }
+    yawWrapped -= 180.0f;
+
     canvas->fillSmoothRoundRect(16, 48, 448, 64, 14, kColorPanel);
     canvas->setFont(&fonts::DejaVu12);
     canvas->setTextDatum(top_left);
     canvas->setTextColor(kColorMuted, kColorPanel);
     canvas->drawString("ROLL", 32, 58);
-    canvas->drawString("PITCH", 240, 58);
+    canvas->drawString("PITCH", 178, 58);
+    canvas->drawString("YAW*", 324, 58);
     canvas->setFont(&fonts::DejaVu18);
     canvas->setTextColor(kColorText, kColorPanel);
     snprintf(buffer, sizeof(buffer), "%+.1f deg", imu.roll);
     canvas->drawString(buffer, 32, 80);
     snprintf(buffer, sizeof(buffer), "%+.1f deg", imu.pitch);
-    canvas->drawString(buffer, 240, 80);
+    canvas->drawString(buffer, 178, 80);
+    snprintf(buffer, sizeof(buffer), "%+.0f deg", yawWrapped);
+    canvas->drawString(buffer, 324, 80);
 
     canvas->fillSmoothRoundRect(16, 120, 216, 130, 14, kColorPanel);
     canvas->setFont(&fonts::DejaVu12);

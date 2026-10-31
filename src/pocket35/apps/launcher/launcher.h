@@ -35,6 +35,11 @@ namespace VIEW
             bool wasTouched = false;
             int16_t touchStartX = 0;
             bool touchMoved = false;
+            bool touchOnIcon = false;
+
+            bool isDirty = true;
+            bool wasAnimating = false;
+            char lastStatusText[32] = {0};
         };
         Data_t _data;
 
@@ -44,6 +49,7 @@ namespace VIEW
         void renderStatusBar();
         void updatePanelAnim();
         void handleTouch();
+        bool isTouchInsideIcon(int16_t x, int16_t y);
 
         void _update_camera_keyframe() override;
         void onReadInput() override;
@@ -57,6 +63,7 @@ namespace VIEW
     public:
         void init(int width, int height);
         void addAppOption(const AppOptionProps_t& props);
+        void setSelectedOptionIndex(int index);
         void setOpenCallback(std::function<void(int)> callback) { _data.openCallback = callback; }
     };
 } // namespace VIEW
@@ -67,6 +74,7 @@ namespace MOONCAKE::APPS
     {
     private:
         VIEW::LauncherView* launcherView = nullptr;
+        int lastSelectedAppId = -1;
 
         void createLauncherView();
         void destroyLauncherView();
