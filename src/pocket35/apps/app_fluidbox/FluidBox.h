@@ -4,7 +4,9 @@
 #pragma once
 
 #include <LovyanGFX.hpp>
+#include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
+#include <new>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -12,6 +14,26 @@
 
 class FluidBox {
  public:
+  static void* operator new(size_t size)
+  {
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+  }
+
+  static void* operator new(size_t size, const std::nothrow_t&) noexcept
+  {
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+  }
+
+  static void operator delete(void* ptr)
+  {
+    heap_caps_free(ptr);
+  }
+
+  static void operator delete(void* ptr, const std::nothrow_t&) noexcept
+  {
+    heap_caps_free(ptr);
+  }
+
   struct Stats {
     uint16_t pairCount = 0;
     bool pairOverflow = false;

@@ -2,6 +2,8 @@
 #include "hal/hal.h"
 #include "../assets/theme/theme.h"
 #include <lvgl.h>
+#include "lvgl/smooth_lvgl.hpp"
+#include "uitk/short_namespace.hpp"
 
 using namespace MOONCAKE::APPS;
 
@@ -29,7 +31,7 @@ namespace
 void AppLvglDemo::onCreate()
 {
     setAppInfo().name = "LVGL Demo";
-    setAppInfo().icon = (void*)image_data_icon_app_imu;
+    setAppInfo().icon = (void*)image_data_icon_app_lvgl;
     setAppInfo().userData = (void*)(uintptr_t)THEME::kAppImuTheme;
 }
 

@@ -5,3 +5,6 @@
 #include "icon_app_battery.hpp"
 #include "icon_app_wifi.hpp"
 #include "icon_app_clock.hpp"
+#include "icon_app_lvgl.hpp"
+#include "icon_app_fluidbox.hpp"
+#include "icon_app_lucky_wheel.hpp"

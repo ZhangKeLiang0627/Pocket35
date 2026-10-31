@@ -193,6 +193,9 @@ public:
     static void CanvasUpdate() { Get()->canvasUpdate(); }
     virtual void canvasUpdate();
 
+    static void CanvasPush(int16_t x, int16_t y, int16_t w, int16_t h) { Get()->canvasPush(x, y, w, h); }
+    virtual void canvasPush(int16_t x, int16_t y, int16_t w, int16_t h) { canvasUpdate(); }
+
     static void RenderFpsPanel() { Get()->renderFpsPanel(); }
     virtual void renderFpsPanel();
 
@@ -282,10 +285,17 @@ public:
     virtual void lvglInit() {}
     static void LvglUpdate() { Get()->lvglUpdate(); }
     virtual void lvglUpdate() {}
+
+    static void LvglFlushNow() { Get()->lvglFlushNow(); }
+    virtual void lvglFlushNow() {}
     static void LvglHideCanvas() { Get()->lvglHideCanvas(); }
     virtual void lvglHideCanvas() {}
     static void LvglShowCanvas() { Get()->lvglShowCanvas(); }
     virtual void lvglShowCanvas() {}
+    static void LvglSuspend() { Get()->lvglSuspend(); }
+    virtual void lvglSuspend() {}
+    static void LvglResume() { Get()->lvglResume(); }
+    virtual void lvglResume() {}
 
 protected:
     void setBleState(BLE::State state) { _ble_state = state; }

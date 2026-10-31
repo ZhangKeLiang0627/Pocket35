@@ -15,13 +15,14 @@ namespace
 void AppFluidBox::onCreate()
 {
     setAppInfo().name = "FluidBox";
-    setAppInfo().icon = (void*)image_data_icon_app_imu;
+    setAppInfo().icon = (void*)image_data_icon_app_fluidbox;
     setAppInfo().userData = (void*)(uintptr_t)THEME::kAppFluidboxTheme;
 }
 
 void AppFluidBox::onOpen()
 {
     HAL::LvglHideCanvas();
+    HAL::LvglSuspend();
 
     fluid.reset(new (std::nothrow) FluidBox());
     auto* canvas = HAL::GetCanvas();
@@ -82,6 +83,7 @@ void AppFluidBox::onClose()
     fluidReady = false;
     touchDown = false;
     fluid.reset();
+    HAL::LvglResume();
     HAL::LvglShowCanvas();
 }
 

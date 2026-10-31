@@ -22,7 +22,7 @@ constexpr uint32_t kRenderTaskStackBytes = 6144;
 
 // 3-D neighbour grid. Each cell must remain at least kSmoothingRadius wide.
 constexpr int kGridX = 10;
-constexpr int kGridY = 10;
+constexpr int kGridY = 7;
 constexpr int kGridZ = 2;
 
 // Active Water tuning group (future Oil/Jelly presets can replace this block).

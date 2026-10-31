@@ -1,0 +1,11 @@
+{
+  "name": "smooth_lvgl",
+  "version": "2.12.1",
+  "description": "smooth_ui_toolkit lvgl_cpp wrapper and number_flow, trimmed for Pocket35",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  }
+}

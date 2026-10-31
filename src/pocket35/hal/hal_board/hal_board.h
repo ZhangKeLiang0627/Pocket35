@@ -53,7 +53,9 @@ public:
 
     void lvglInit() override;
     void lvglUpdate() override;
-    void lvglHideCanvas() override;
-    void lvglShowCanvas() override;
+    void lvglFlushNow() override;
+    void lvglSuspend() override;
+    void lvglResume() override;
     void canvasUpdate() override;
+    void canvasPush(int16_t x, int16_t y, int16_t w, int16_t h) override;
 };
