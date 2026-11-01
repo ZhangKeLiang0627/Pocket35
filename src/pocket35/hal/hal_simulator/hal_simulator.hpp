@@ -10,14 +10,18 @@ class HAL_Simulator : public HAL
 public:
     std::string type() override { return "Simulator"; }
 
-    void init() override
-    {
-        _display = new LGFX(480, 320);
-        _display->init();
+    void init() override;
+    void updateTouch() override;
+    void rtcUpdate() override;
+    void pmicUpdate() override;
 
-        _canvas = new LGFX_SpriteFx(_display);
-        _canvas->setColorDepth(16);
-        _canvas->createSprite(_display->width(), _display->height());
-    }
+    void lvglInit() override;
+    void lvglUpdate() override;
+    void lvglFlushNow() override;
+    void lvglSuspend() override;
+    void lvglResume() override;
+
+    void canvasUpdate() override;
+    void canvasPush(int16_t x, int16_t y, int16_t w, int16_t h) override;
 };
 #endif

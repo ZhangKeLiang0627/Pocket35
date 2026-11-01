@@ -106,6 +106,34 @@ Build and upload with PlatformIO:
 pio run -t upload --upload-port COMx
 ```
 
+## Simulator
+
+Runs the same app code on a Linux desktop through SDL2, so the LVGL UI can be previewed without the board. `HAL_Simulator` supplies the panel, maps the mouse to touch input and feeds the wall clock to the RTC layer; board code under `hal_board/` is excluded from the build.
+
+**Prerequisites (Ubuntu)**
+
+```sh
+sudo apt install build-essential cmake git pkg-config libsdl2-dev
+```
+
+**Build and run**
+
+```sh
+bash sim/setup_deps.sh                    # clone LovyanGFX / LVGL 9.5 / Mooncake into third_party
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j8
+./pocket35_sim
+```
+
+| Step | What it does |
+| --- | --- |
+| `sim/setup_deps.sh` | Clones the pinned deps into `third_party/`: LovyanGFX `master`, LVGL `release/v9.5`, Mooncake `v2.3.3`. Tries the `ghfast.top` mirror first, falls back to GitHub. Safe to re-run. |
+| `cmake ..` | Compiles the app sources plus `lib/` libraries against SDL; `include/lv_conf.h` is reused as the LVGL config. |
+| `make -j8` | Produces `build/pocket35_sim`, no cross toolchain involved. |
+
+Drag with the mouse to swipe between apps, click an icon to launch it. `sim/compat/` holds the Arduino / ESP-IDF shims, and `sim/sdl_compat.*` patches the two SDL calls LovyanGFX needs that are missing from SDL 2.0.10 (Ubuntu 20.04's default).
+
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
