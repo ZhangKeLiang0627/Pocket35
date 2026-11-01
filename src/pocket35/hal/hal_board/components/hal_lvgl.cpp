@@ -3,6 +3,7 @@
 #include <esp_heap_caps.h>
 #include "../hal_config.h"
 #include "../hal_board.h"
+#include "../../utils/lvgl_pixel_swap.h"
 
 namespace
 {
@@ -14,38 +15,12 @@ namespace
     bool lvglPaused = false;
 } // namespace
 
-static void lvglSwapPixelBytes(uint8_t* px_map, uint32_t count)
-{
-    if (((uintptr_t)px_map & 3) == 0)
-    {
-        uint32_t* quad = (uint32_t*)px_map;
-        uint32_t pairs = count >> 1;
-        for (uint32_t i = 0; i < pairs; i++)
-        {
-            uint32_t v = quad[i];
-            quad[i] = ((v >> 8) & 0x00FF00FF) | ((v << 8) & 0xFF00FF00);
-        }
-        if (count & 1)
-        {
-            uint16_t* tail = (uint16_t*)px_map + (count - 1);
-            *tail = (uint16_t)((*tail >> 8) | (*tail << 8));
-        }
-        return;
-    }
-
-    uint16_t* p = (uint16_t*)px_map;
-    for (uint32_t i = 0; i < count; i++)
-    {
-        p[i] = (p[i] >> 8) | (p[i] << 8);
-    }
-}
-
 static void lvglFlushCb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
 {
     uint32_t w = area->x2 - area->x1 + 1;
     uint32_t h = area->y2 - area->y1 + 1;
 
-    lvglSwapPixelBytes(px_map, w * h);
+    PIXEL::swapRgb565Bytes(px_map, w * h);
     HAL::GetDisplay()->pushImage(area->x1, area->y1, w, h, (uint16_t*)px_map);
     lv_display_flush_ready(disp);
 }

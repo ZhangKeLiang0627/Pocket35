@@ -1,6 +1,7 @@
 #ifndef ESP_PLATFORM
 
 #include "hal_simulator.hpp"
+#include "../utils/lvgl_pixel_swap.h"
 #include <cstring>
 #include <ctime>
 #include <lvgl.h>
@@ -19,6 +20,7 @@ namespace
     {
         const int32_t w = area->x2 - area->x1 + 1;
         const int32_t h = area->y2 - area->y1 + 1;
+        PIXEL::swapRgb565Bytes(px_map, static_cast<uint32_t>(w * h));
         HAL::GetDisplay()->pushImage(area->x1, area->y1, w, h, reinterpret_cast<uint16_t*>(px_map));
         lv_display_flush_ready(disp);
     }
