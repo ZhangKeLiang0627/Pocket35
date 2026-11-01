@@ -23,5 +23,12 @@ public:
 
     void canvasUpdate() override;
     void canvasPush(int16_t x, int16_t y, int16_t w, int16_t h) override;
+
+    void buttonUpdate() override;
+    BUTTON::Event getButtonEvent() override;
+    bool isButtonPressed() override;
+    bool isButtonHolding() override;
+    uint32_t getButtonPressedMs() override;
+    void setButtonSfx(bool enabled) override;
 };
 #endif

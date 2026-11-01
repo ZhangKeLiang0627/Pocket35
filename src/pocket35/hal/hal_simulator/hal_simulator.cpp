@@ -2,6 +2,7 @@
 
 #include "hal_simulator.hpp"
 #include "../utils/lvgl_pixel_swap.h"
+#include <SDL.h>
 #include <cstring>
 #include <ctime>
 #include <lvgl.h>
@@ -15,6 +16,13 @@ namespace
     lv_indev_t* lvglIndev = nullptr;
     uint16_t* lvglDispBuf = nullptr;
     bool lvglPaused = false;
+    BUTTON::Event pendingButtonEvent = BUTTON::Event::none;
+
+    bool bootKeyDown()
+    {
+        const Uint8* keys = SDL_GetKeyboardState(nullptr);
+        return keys != nullptr && keys[SDL_SCANCODE_SPACE] != 0;
+    }
 
     void lvglFlushCb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
     {
@@ -47,8 +55,10 @@ void HAL_Simulator::init()
 
     lvglInit();
 
+    btnBoot.setRawState(millis(), false);
+
     _touch.isPressed = false;
-    printf("[sim] panel %dx%d\n", _display->width(), _display->height());
+    printf("[sim] panel %dx%d, space key -> BOOT\n", _display->width(), _display->height());
 }
 
 void HAL_Simulator::updateTouch()
@@ -153,5 +163,41 @@ void HAL_Simulator::canvasPush(int16_t x, int16_t y, int16_t w, int16_t h)
                           static_cast<size_t>(y) * _canvas->width() + x;
     _display->pushImage(x, y, w, h, src);
 }
+
+void HAL_Simulator::buttonUpdate()
+{
+    btnBoot.setRawState(millis(), bootKeyDown());
+
+    if (btnBoot.wasHold())
+    {
+        pendingButtonEvent = BUTTON::Event::hold;
+    }
+    else if (btnBoot.wasReleasedAfterHold())
+    {
+        pendingButtonEvent = BUTTON::Event::holdRelease;
+    }
+    else if (btnBoot.wasClicked())
+    {
+        pendingButtonEvent = BUTTON::Event::click;
+    }
+}
+
+BUTTON::Event HAL_Simulator::getButtonEvent()
+{
+    const BUTTON::Event event = pendingButtonEvent;
+    pendingButtonEvent = BUTTON::Event::none;
+    return event;
+}
+
+bool HAL_Simulator::isButtonPressed() { return btnBoot.isPressed(); }
+
+bool HAL_Simulator::isButtonHolding() { return btnBoot.isHolding(); }
+
+uint32_t HAL_Simulator::getButtonPressedMs()
+{
+    return btnBoot.isPressed() ? millis() - btnBoot.lastChange() : 0;
+}
+
+void HAL_Simulator::setButtonSfx(bool enabled) { buttonConfig.sfxEnabled = enabled; }
 
 #endif

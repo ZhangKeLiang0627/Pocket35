@@ -132,7 +132,7 @@ make -j8
 | `cmake ..` | Compiles the app sources plus `lib/` libraries against SDL; `include/lv_conf.h` is reused as the LVGL config. |
 | `make -j8` | Produces `build/pocket35_sim`, no cross toolchain involved. |
 
-Drag with the mouse to swipe between apps, click an icon to launch it. `sim/compat/` holds the Arduino / ESP-IDF shims, and `sim/sdl_compat.*` patches the two SDL calls LovyanGFX needs that are missing from SDL 2.0.10 (Ubuntu 20.04's default).
+Drag with the mouse to swipe between apps, click an icon to launch it, and press **Space** to emulate the BOOT key on the board. `sim/compat/` holds the Arduino / ESP-IDF shims, and `sim/sdl_compat.*` patches the two SDL calls LovyanGFX needs that are missing from SDL 2.0.10 (Ubuntu 20.04's default).
 
 ## License
 
