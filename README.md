@@ -117,4 +117,4 @@ Drag with the mouse to swipe between apps, click an icon to launch it, and press
 
 Licensed under the [Apache License 2.0](LICENSE).
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=90&section=footer" alt="Pocket35 页脚" width="100%" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00C6FF,100:0072FF&height=90&section=footer" alt="Pocket35 页脚" width="100%" />
